@@ -28,9 +28,20 @@ export default function Disposal() {
     fetchDisposals()
   }, [fetchSamples, fetchDisposals])
 
-  const eligibleSamples = samples.filter(
-    (s) => s.status === '待处置' || s.status === '已检测'
-  )
+  const isRetentionExpired = (retentionEnd: string): { expired: boolean; daysDiff: number } => {
+    const today = new Date()
+    today.setHours(0, 0, 0, 0)
+    const endDate = new Date(retentionEnd)
+    endDate.setHours(0, 0, 0, 0)
+    const daysDiff = Math.ceil((endDate.getTime() - today.getTime()) / (1000 * 60 * 60 * 24))
+    return { expired: daysDiff <= 0, daysDiff }
+  }
+
+  const eligibleSamples = samples.filter((s) => {
+    const statusOk = s.status === '待处置' || s.status === '已检测' || s.status === '超期'
+    const { expired } = isRetentionExpired(s.retentionEnd)
+    return statusOk && expired
+  })
 
   const handleCreate = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -140,12 +151,17 @@ export default function Disposal() {
                   className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm"
                 >
                   <option value="">请选择</option>
-                  {eligibleSamples.map((s) => (
-                    <option key={s.id} value={s.id}>
-                      {s.sampleCode} - {s.itemName}
-                      {s.isInvolved ? ' [涉案]' : ''}
-                    </option>
-                  ))}
+                  {eligibleSamples.map((s) => {
+                    const { daysDiff } = isRetentionExpired(s.retentionEnd)
+                    const retentionLabel = daysDiff === 0 ? ' [今日到期]' : ` [超期${Math.abs(daysDiff)}天]`
+                    return (
+                      <option key={s.id} value={s.id}>
+                        {s.sampleCode} - {s.itemName}
+                        {s.isInvolved ? ' [涉案]' : ''}
+                        {retentionLabel}
+                      </option>
+                    )
+                  })}
                 </select>
               </div>
               <div>

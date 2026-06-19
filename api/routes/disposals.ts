@@ -49,6 +49,17 @@ router.post('/disposals', async (req: Request, res: Response): Promise<void> => 
       return
     }
 
+    const today = new Date()
+    today.setHours(0, 0, 0, 0)
+    const retentionEndDate = new Date(sample.retentionEnd)
+    retentionEndDate.setHours(0, 0, 0, 0)
+    const daysRemaining = Math.ceil((retentionEndDate.getTime() - today.getTime()) / (1000 * 60 * 60 * 24))
+
+    if (daysRemaining > 0) {
+      res.status(400).json({ success: false, error: `样品留置期未满，留置截止日为 ${sample.retentionEnd}，剩余 ${daysRemaining} 天，到期后方可发起处置` })
+      return
+    }
+
     if (sample.isInvolved && (!disposalDocNo || disposalDocNo.trim() === '')) {
       res.status(400).json({ success: false, error: '涉案样品必须填写处置文书号' })
       return
